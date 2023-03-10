@@ -1,80 +1,54 @@
 #!/usr/bin/python3
 """
-Fabric script that distributes an archive to web servers
+This Fabric script distributes an archive to the web servers, based on the
+1-pack_web_static.py file.
 """
-import os.path
-from fabric.api import env, local, put, run
-from datetime import datetime
 
-env.user = 'ubuntu'
-env.hosts = ['3.90.0.75', '54.175.29.140']
+from fabric.api import put, run, env
+from os.path import exists
+
+# Set the list of servers to deploy to
+env.hosts = ['35.175.220.215', '54.221.18.158']
 
 
-def do_pack():
+def deploy_archive(archive_path):
     """
-    Create a tar gzipped archive of the directory web_static.
+    Distributes the archive at the specified path to the web servers.
+    Returns True if the deployment was successful, False otherwise.
     """
-    try:
-        if not os.path.isdir("versions"):
-            os.makedirs("versions")
-        now = datetime.now().strftime("%Y%m%d%H%M%S")
-        archive_path = "versions/web_static_{}.tgz".format(now)
-        local("tar -cvzf {} web_static".format(archive_path))
-        return archive_path
-    except:
-        return None
-
-
-def do_deploy(archive_path):
-    """
-    Distributes an archive to web servers
-    """
-    if not os.path.exists(archive_path):
+    if not exists(archive_path):
         return False
 
     try:
-        archive_name = os.path.basename(archive_path)
-        no_ext = os.path.splitext(archive_name)[0]
+        # Extract the filename and directory name from the archive path
+        filename = archive_path.split("/")[-1]
+        dirname = filename.split(".")[0]
 
-        # Upload archive to /tmp/ directory of the web server
-        put(archive_path, "/tmp/")
+        # Set the destination directory for the archive
+        dest_dir = "/data/web_static/releases/"
 
-        # Create directory to uncompress the archive
-        run("sudo mkdir -p /data/web_static/releases/{}".format(no_ext))
+        # Upload the archive to the server
+        put(archive_path, '/tmp/')
 
-        # Uncompress archive into the folder created
-        run("sudo tar -xzf /tmp/{} -C /data/web_static/releases/{}/"
-            .format(archive_name, no_ext))
+        # Create the destination directory for the archive
+        run('mkdir -p {}{}/'.format(dest_dir, dirname))
 
-        # Delete archive from web server
-        run("sudo rm /tmp/{}".format(archive_name))
+        # Extract the archive to the destination directory
+        run('tar -xzf /tmp/{} -C {}{}/'.format(filename, dest_dir, dirname))
 
-        # Move uncompressed files to its own folder
-        run("sudo mv /data/web_static/releases/{}/web_static/* "
-            "/data/web_static/releases/{}/"
-            .format(no_ext, no_ext))
+        # Clean up the temporary archive
+        run('rm /tmp/{}'.format(filename))
 
-        # Remove original web_static folder
-        run("sudo rm -rf /data/web_static/releases/{}/web_static"
-            .format(no_ext))
+        # Move the contents of the web_static directory to the release directory
+        run('mv {0}{1}/web_static/* {0}{1}/'.format(dest_dir, dirname))
 
-        # Delete symbolic link
-        run("sudo rm -rf /data/web_static/current")
+        # Clean up the web_static directory
+        run('rm -rf {}{}/web_static'.format(dest_dir, dirname))
 
-        # Create new symbolic link
-        run("sudo ln -s /data/web_static/releases/{}/ "
-            "/data/web_static/current".format(no_ext))
+        # Update the symlink to the new release
+        run('rm -rf /data/web_static/current')
+        run('ln -s {}{}/ /data/web_static/current'.format(dest_dir, dirname))
 
-        # Add a new file to the deployment
-        run("sudo touch /data/web_static/releases/{}/index.html"
-            .format(no_ext))
-        run("sudo echo '<html><head></head><body>Holberton School</body></html>' "
-            "| sudo tee /data/web_static/releases/{}/index.html"
-            .format(no_ext))
-
-        print("New version deployed!")
         return True
-
-    except Exception as e:
-        print(e)
+    except:
         return False
