@@ -12,7 +12,6 @@ Routes:
     /: Displays 'Hello HBNB!'.
     /hbnb: Displays 'HBNB'.
     /c/<text>: Displays 'C' followed by the value of <text>.
-    
 """
 from flask import Flask
 from flask import render_template
