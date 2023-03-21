@@ -1,59 +1,32 @@
 #!/usr/bin/python3
-# script that starts a Flask web application
+"""Starts a Flask web application.
 
-from models import *
-from flask import Flask, render_template
+The application listens on 0.0.0.0, port 5000.
+Routes:
+    /states_list: HTML page with a list of all State objects in DBStorage.
+"""
+from models import storage
+from flask import Flask
+from flask import render_template
+
 app = Flask(__name__)
 
 
-@app.route('/')
-def index():
-    return "Hello HBNB!"
-
-
-@app.route('/hbnb')
-def hbnb():
-    return "HBNB"
-
-
-@app.route('/c/<string:s>')
-def c(s):
-    new_s = s.replace("_", " ")
-    return "C {}".format(new_s)
-
-
-@app.route('/python', strict_slashes=False)
-@app.route('/python/<string:s>')
-def python(s="is cool"):
-    new_s = s.replace("_", " ")
-    return "Python {}".format(new_s)
-
-
-@app.route('/number/<int:n>')
-def number(n):
-    return "{} is a number".format(n)
-
-
-@app.route('/number_template/<int:n>')
-def number_template(n):
-    return render_template('5-number.html', num=n)
-
-
-@app.route('/number_odd_or_even/<int:n>')
-def number_odd_or_even(n):
-    return render_template('6-number_odd_or_even.html', num=n)
-
-
-@app.route('/states_list')
+@app.route("/states_list", strict_slashes=False)
 def states_list():
-    return render_template('7-states_list.html',
-                           states=storage.all("State"))
+    """Displays an HTML page with a list of all State objects in DBStorage.
+
+    States are sorted by name.
+    """
+    states = storage.all("State")
+    return render_template("7-states_list.html", states=states)
 
 
 @app.teardown_appcontext
-def teardown(err):
+def teardown(exc):
+    """Remove the current SQLAlchemy session."""
     storage.close()
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0')
+    app.run(host="0.0.0.0")
